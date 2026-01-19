@@ -2,6 +2,10 @@ const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 let birthdayShown = false;
 
+/* ===== MOBILE FIX ===== */
+document.body.style.touchAction = "none";
+document.body.style.overflow = "hidden";
+
 /* ================= IMAGE LOADING ================= */
 
 const images = {};
@@ -22,6 +26,8 @@ loadImage("lane", "assets/lane.png");
 function resize() {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
+  calcScale();
+  calcLanes();
 }
 resize();
 window.addEventListener("resize", resize);
@@ -42,17 +48,29 @@ let state = STATE.START;
 const speed = 6;
 const groundH = 80;
 
+/* ================= SCALE ================= */
+
+let scale = 1;
+function calcScale() {
+  scale = Math.min(canvas.width / 400, canvas.height / 700);
+}
+
 /* ================= PLAYER ================= */
 
-const player = { x: 120, y: 0, w: 50, h: 80 };
+const player = { x: 0, y: 0, w: 0, h: 0 };
+calcScale();
+player.x = 80 * scale;
+player.w = 50 * scale;
+player.h = 80 * scale;
 
 /* ================= LANES ================= */
 
-const laneGap = 120;
+let laneGap = 110 * scale;
 let lanes = [];
 let lane = 1;
 
 function calcLanes() {
+  laneGap = 110 * scale;
   const bottom = canvas.height - groundH - player.h - 10;
   const middle = bottom - laneGap;
   const top = middle - laneGap;
@@ -61,7 +79,7 @@ function calcLanes() {
 }
 calcLanes();
 
-/* ================= PLAYER SPRITE DATA ================= */
+/* ================= PLAYER SPRITE ================= */
 
 const PLAYER_FRAME_Y = 341;
 const PLAYER_FRAME_HEIGHT = 479;
@@ -79,12 +97,12 @@ let animTimer = 0;
 const animSpeed = 120;
 let punching = false;
 
-/* ================= LANE SPRITE DATA ================= */
+/* ================= LANE SPRITES ================= */
 
 const LANE_X_START = 94;
 const LANE_WIDTH = 1355;
-const LANE_DRAW_WIDTH = 600;
-const LANE_DRAW_HEIGHT = 50;
+const LANE_DRAW_WIDTH = 600 * scale;
+const LANE_DRAW_HEIGHT = 50 * scale;
 
 const LANE_SPRITES = [
   { y: 69, h: 269 },
@@ -113,7 +131,7 @@ function resolveSonat(choice) {
   state = STATE.RUNNING;
 }
 
-/* ================= INPUT ================= */
+/* ================= INPUT (DESKTOP) ================= */
 
 window.addEventListener("keydown", e => {
   if (state === STATE.SONAT) {
@@ -130,6 +148,38 @@ window.addEventListener("keydown", e => {
 
   player.y = lanes[lane];
 });
+
+/* ================= INPUT (MOBILE) ================= */
+
+let touchStartY = 0;
+let touchMoved = false;
+
+canvas.addEventListener("touchstart", e => {
+  e.preventDefault();
+  touchStartY = e.touches[0].clientY;
+  touchMoved = false;
+}, { passive: false });
+
+canvas.addEventListener("touchmove", e => {
+  e.preventDefault();
+  touchMoved = true;
+}, { passive: false });
+
+canvas.addEventListener("touchend", e => {
+  e.preventDefault();
+  if (state !== STATE.RUNNING) return;
+
+  const endY = e.changedTouches[0].clientY;
+  const diff = touchStartY - endY;
+
+  if (diff > 40 && lane > 0) lane--;
+  else if (diff < -40 && lane < 2) lane++;
+  else if (!touchMoved || Math.abs(diff) < 20) punch();
+
+  player.y = lanes[lane];
+}, { passive: false });
+
+/* ================= CLICK ================= */
 
 canvas.addEventListener("click", e => {
   if (state === STATE.START) startGame();
@@ -191,10 +241,10 @@ function punch() {
   punching = true;
   animFrame = 4;
 
-  const box = { x: player.x + player.w, y: player.y, w: 60, h: player.h };
+  const box = { x: player.x + player.w, y: player.y, w: 60 * scale, h: player.h };
 
   enemies = enemies.filter(e =>
-    !rectHit(box, { x: e.x, y: lanes[e.lane], w: 50, h: 80 })
+    !rectHit(box, { x: e.x, y: lanes[e.lane], w: 50 * scale, h: 80 * scale })
   );
 
   setTimeout(() => {
@@ -218,26 +268,23 @@ function update() {
   obstacles.forEach(o => o.x -= speed);
   enemies.forEach(o => o.x -= speed);
 
-  // cake collision
   cakes = cakes.filter(o => {
-    if (rectHit(player, { x:o.x, y:lanes[o.lane]+25, w:30, h:30 })) {
+    if (rectHit(player, { x:o.x, y:lanes[o.lane]+25*scale, w:30*scale, h:30*scale })) {
       cakeCount++;
       return false;
     }
     return o.x > -50;
   });
 
-  // obstacle collision
   for (const o of obstacles) {
-    if (rectHit(player, { x:o.x, y:lanes[o.lane], w:50, h:80 })) {
+    if (rectHit(player, { x:o.x, y:lanes[o.lane], w:50*scale, h:80*scale })) {
       state = STATE.GAMEOVER;
       return;
     }
   }
 
-  // zombie collision (NEW)
   for (const e of enemies) {
-    if (rectHit(player, { x:e.x, y:lanes[e.lane], w:50, h:80 })) {
+    if (rectHit(player, { x:e.x, y:lanes[e.lane], w:50*scale, h:80*scale })) {
       state = STATE.GAMEOVER;
       return;
     }
@@ -245,13 +292,11 @@ function update() {
 
   enemies = enemies.filter(o => o.x > -50);
 
-  // birthday event
   if (!birthdayShown && Date.now() - startTime > 30000) {
     state = STATE.BIRTHDAY;
     birthdayShown = true;
   }
 
-  // sonat event
   if (state === STATE.RUNNING && Date.now() - startTime > 33000 && !sonatDone) {
     state = STATE.SONAT;
     sonatDone = true;
@@ -264,7 +309,7 @@ function drawLaneBackgrounds() {
   if (state !== STATE.RUNNING) return;
 
   for (let i = 0; i < 3; i++) {
-    const y = lanes[i] + player.h - 10;
+    const y = lanes[i] + player.h - 10 * scale;
     const sprite = LANE_SPRITES[i];
 
     for (let x = -laneScroll % LANE_DRAW_WIDTH; x < canvas.width; x += LANE_DRAW_WIDTH) {
@@ -295,21 +340,21 @@ function draw() {
     player.w, player.h
   );
 
-  cakes.forEach(o => ctx.drawImage(images.cake, o.x, lanes[o.lane]+25, 30, 30));
-  obstacles.forEach(o => ctx.drawImage(images.obstacle, o.x, lanes[o.lane], 50, 80));
-  enemies.forEach(o => ctx.drawImage(images.enemy, o.x, lanes[o.lane], 50, 80));
+  cakes.forEach(o => ctx.drawImage(images.cake, o.x, lanes[o.lane]+25*scale, 30*scale, 30*scale));
+  obstacles.forEach(o => ctx.drawImage(images.obstacle, o.x, lanes[o.lane], 50*scale, 80*scale));
+  enemies.forEach(o => ctx.drawImage(images.enemy, o.x, lanes[o.lane], 50*scale, 80*scale));
 
   ctx.fillStyle = "#000";
-  ctx.font = "20px Arial";
-  ctx.fillText("🍰 " + cakeCount, 20, 30);
+  ctx.font = `${20*scale}px Arial`;
+  ctx.fillText("🍰 " + cakeCount, 20*scale, 30*scale);
 
   ctx.textAlign = "center";
   if (state === STATE.START) ctx.fillText("CLICK TO START", canvas.width/2, canvas.height/2);
   if (state === STATE.BIRTHDAY) ctx.fillText("🎉 Happy Birthday 🎉 — Click", canvas.width/2, canvas.height/2);
   if (state === STATE.SONAT) {
-    ctx.fillText("Sonat asks for chelav", canvas.width/2, canvas.height/2 - 40);
+    ctx.fillText("Sonat asks for chelav", canvas.width/2, canvas.height/2 - 40*scale);
     ctx.fillText("1. Agree", canvas.width/2, canvas.height/2);
-    ctx.fillText("2. Hit", canvas.width/2, canvas.height/2 + 40);
+    ctx.fillText("2. Hit", canvas.width/2, canvas.height/2 + 40*scale);
   }
   if (state === STATE.GAMEOVER) ctx.fillText("Game Over — Click to Restart", canvas.width/2, canvas.height/2);
 }
