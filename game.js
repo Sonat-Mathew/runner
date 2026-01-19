@@ -118,6 +118,8 @@ let cakeCount = 0;
 
 let startTime = 0;
 let birthdayTime = 0;
+let inputLockedUntil = 0;
+
 let sonatResultTime = 0;
 let sonatMessage = "";
 
@@ -127,6 +129,9 @@ let touchStartY = null;
 
 canvas.addEventListener("touchstart", e => {
   e.preventDefault();
+
+  const now = Date.now();
+  if (now < inputLockedUntil) return;
 
   tryFullscreen();
 
@@ -141,18 +146,16 @@ canvas.addEventListener("touchstart", e => {
   }
 
   if (state === STATE.BIRTHDAY) {
-    if (Date.now() - birthdayTime >= 5000) {
-      state = STATE.RUNNING;
-    }
+    state = STATE.RUNNING;
     return;
   }
 
   if (state === STATE.SONAT) {
-    const left = e.touches[0].clientX < canvas.width / 2;
-    if (left) {
-      sonatMessage = "yayyy";
+    const x = e.touches[0].clientX;
+    if (x < canvas.width / 2) {
+      sonatMessage = "yayyy 🎉";
     } else {
-      sonatMessage = "kolladi\nsonat took all the cakes";
+      sonatMessage = "kolladi 😤\nsonat took all the cakes";
       cakeCount = 0;
     }
     sonatResultTime = Date.now();
@@ -275,6 +278,7 @@ function update() {
   if (Date.now() - startTime > 30000 && state === STATE.RUNNING) {
     state = STATE.BIRTHDAY;
     birthdayTime = Date.now();
+    inputLockedUntil = birthdayTime + 5000;
   }
 
   if (Date.now() - startTime > 35000 && state === STATE.RUNNING) {
@@ -338,7 +342,7 @@ function draw() {
 
   if (state === STATE.START) overlay("Birthday Runner", "Tap to Start", "#ffd700");
   if (state === STATE.BIRTHDAY) overlay("🎉 Happy Birthday 🎉", "Enjoy the moment!", "#ff69b4");
-  if (state === STATE.SONAT) overlay("Sonat asks for chelav", "Agree (Left) / Disagree (Right)", "#7fffd4");
+  if (state === STATE.SONAT) overlay("Sonat asks for chelav", "Agree ←   → Disagree", "#7fffd4");
   if (state === STATE.SONAT_RESULT) overlay(sonatMessage, "", "#ffffff");
   if (state === STATE.GAMEOVER) overlay("Game Over", "Tap to retry", "#ff4444");
 }
