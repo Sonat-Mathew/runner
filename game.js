@@ -7,10 +7,12 @@ document.body.style.overflow = "hidden";
 
 /* ================= FULLSCREEN ================= */
 
-function requestFullscreen() {
-  const el = document.documentElement;
-  if (el.requestFullscreen) el.requestFullscreen();
-  else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+function tryFullscreen() {
+  if (window.innerWidth > window.innerHeight) {
+    const el = document.documentElement;
+    if (el.requestFullscreen) el.requestFullscreen();
+    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+  }
 }
 
 /* ================= IMAGE LOADING ================= */
@@ -44,7 +46,8 @@ const STATE = {
   RUNNING: 1,
   BIRTHDAY: 2,
   SONAT: 3,
-  GAMEOVER: 4
+  SONAT_RESULT: 4,
+  GAMEOVER: 5
 };
 let state = STATE.START;
 
@@ -114,18 +117,20 @@ let cakeCount = 0;
 /* ================= TIMERS ================= */
 
 let startTime = 0;
-let birthdayShown = false;
-let sonatDone = false;
+let birthdayTime = 0;
+let sonatResultTime = 0;
+let sonatMessage = "";
 
-/* ================= INPUT (MOBILE-FIRST) ================= */
+/* ================= INPUT ================= */
 
 let touchStartY = null;
 
 canvas.addEventListener("touchstart", e => {
   e.preventDefault();
 
+  tryFullscreen();
+
   if (state === STATE.START) {
-    requestFullscreen();
     startGame();
     return;
   }
@@ -135,8 +140,23 @@ canvas.addEventListener("touchstart", e => {
     return;
   }
 
-  if (state === STATE.BIRTHDAY || state === STATE.SONAT) {
-    state = STATE.RUNNING;
+  if (state === STATE.BIRTHDAY) {
+    if (Date.now() - birthdayTime >= 5000) {
+      state = STATE.RUNNING;
+    }
+    return;
+  }
+
+  if (state === STATE.SONAT) {
+    const left = e.touches[0].clientX < canvas.width / 2;
+    if (left) {
+      sonatMessage = "yayyy";
+    } else {
+      sonatMessage = "kolladi\nsonat took all the cakes";
+      cakeCount = 0;
+    }
+    sonatResultTime = Date.now();
+    state = STATE.SONAT_RESULT;
     return;
   }
 
@@ -175,8 +195,6 @@ function resetGame() {
   animFrame = 0;
   animTimer = 0;
   punching = false;
-  birthdayShown = false;
-  sonatDone = false;
   calcLanes();
 }
 
@@ -254,20 +272,23 @@ function update() {
     }
   }
 
-  if (!birthdayShown && Date.now() - startTime > 30000) {
+  if (Date.now() - startTime > 30000 && state === STATE.RUNNING) {
     state = STATE.BIRTHDAY;
-    birthdayShown = true;
+    birthdayTime = Date.now();
   }
 
-  if (state === STATE.RUNNING && Date.now() - startTime > 33000 && !sonatDone) {
+  if (Date.now() - startTime > 35000 && state === STATE.RUNNING) {
     state = STATE.SONAT;
-    sonatDone = true;
+  }
+
+  if (state === STATE.SONAT_RESULT && Date.now() - sonatResultTime > 3000) {
+    state = STATE.RUNNING;
   }
 }
 
 /* ================= UI ================= */
 
-function drawOverlay(title, subtitle, color) {
+function overlay(title, subtitle, color) {
   ctx.fillStyle = "rgba(0,0,0,0.65)";
   ctx.fillRect(0,0,canvas.width,canvas.height);
 
@@ -278,14 +299,15 @@ function drawOverlay(title, subtitle, color) {
 
   ctx.font = "20px Arial";
   ctx.fillStyle = color;
-  ctx.fillText(subtitle, canvas.width/2, canvas.height/2 + 20);
+  subtitle.split("\n").forEach((line,i)=>{
+    ctx.fillText(line, canvas.width/2, canvas.height/2 + 20 + i*24);
+  });
 }
 
 /* ================= DRAW ================= */
 
 function drawLaneBackgrounds() {
   if (state !== STATE.RUNNING) return;
-
   for (let i=0;i<3;i++) {
     const y = lanes[i] + player.h - 10;
     const s = LANE_SPRITES[i];
@@ -314,23 +336,17 @@ function draw() {
   ctx.font="20px Arial";
   ctx.fillText("🍰 "+cakeCount,20,30);
 
-  if (state === STATE.START)
-    drawOverlay("Birthday Runner", "Tap to Start", "#ffd700");
-
-  if (state === STATE.BIRTHDAY)
-    drawOverlay("🎉 Happy Birthday 🎉", "Tap to continue", "#ff69b4");
-
-  if (state === STATE.SONAT)
-    drawOverlay("Sonat asks for chelav", "Tap to continue", "#7fffd4");
-
-  if (state === STATE.GAMEOVER)
-    drawOverlay("Game Over", "Tap to retry", "#ff4444");
+  if (state === STATE.START) overlay("Birthday Runner", "Tap to Start", "#ffd700");
+  if (state === STATE.BIRTHDAY) overlay("🎉 Happy Birthday 🎉", "Enjoy the moment!", "#ff69b4");
+  if (state === STATE.SONAT) overlay("Sonat asks for chelav", "Agree (Left) / Disagree (Right)", "#7fffd4");
+  if (state === STATE.SONAT_RESULT) overlay(sonatMessage, "", "#ffffff");
+  if (state === STATE.GAMEOVER) overlay("Game Over", "Tap to retry", "#ff4444");
 }
 
 /* ================= LOOP ================= */
 
 function loop() {
-  if (state === STATE.RUNNING) update();
+  if (state === STATE.RUNNING || state === STATE.SONAT_RESULT) update();
   draw();
   requestAnimationFrame(loop);
 }
@@ -339,4 +355,3 @@ function loop() {
 
 resize();
 loop();
- 
