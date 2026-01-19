@@ -1,16 +1,19 @@
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
-let birthdayShown = false;
 
-/* ===== MOBILE FIX ===== */
+/* ================= MOBILE SAFETY ================= */
 document.body.style.touchAction = "none";
 document.body.style.overflow = "hidden";
 
 /* ================= IMAGE LOADING ================= */
 
 const images = {};
+let imagesLoaded = 0;
+const TOTAL_IMAGES = 5;
+
 function loadImage(key, src) {
   const img = new Image();
+  img.onload = () => imagesLoaded++;
   img.src = src;
   images[key] = img;
 }
@@ -21,58 +24,47 @@ loadImage("obstacle", "assets/obstacle.png");
 loadImage("enemy", "assets/enemy.png");
 loadImage("lane", "assets/lane.png");
 
-/* ================= SCALE ================= */
-
-let scale = 1;
-let LANE_DRAW_WIDTH = 600;
-let LANE_DRAW_HEIGHT = 50;
-
-function calcScale() {
-  scale = Math.min(canvas.width / 400, canvas.height / 700);
-  LANE_DRAW_WIDTH = 600 * scale;
-  LANE_DRAW_HEIGHT = 50 * scale;
-}
-
-/* ================= PLAYER ================= */
-
-const player = { x: 0, y: 0, w: 0, h: 0 };
-
-/* ================= LANES ================= */
-
-let laneGap = 110 * scale;
-let lanes = [];
-let lane = 1;
-
-function calcLanes() {
-  laneGap = 110 * scale;
-  const bottom = canvas.height - 80 - player.h - 10;
-  const middle = bottom - laneGap;
-  const top = middle - laneGap;
-  lanes = [top, middle, bottom];
-  player.y = lanes[lane];
-}
-
 /* ================= CANVAS ================= */
 
 function resize() {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
-
-  calcScale();
-
-  player.x = 80 * scale;
-  player.w = 50 * scale;
-  player.h = 80 * scale;
-
-  calcLanes();
 }
 resize();
 window.addEventListener("resize", resize);
 
 /* ================= STATES ================= */
 
-const STATE = { START:0, RUNNING:1, GAMEOVER:4 };
+const STATE = {
+  START: 0,
+  RUNNING: 1,
+  GAMEOVER: 2
+};
 let state = STATE.START;
+
+/* ================= WORLD ================= */
+
+const speed = 6;
+const groundH = 80;
+
+/* ================= PLAYER ================= */
+
+const player = { x: 120, y: 0, w: 50, h: 80 };
+
+/* ================= LANES ================= */
+
+const laneGap = 120;
+let lanes = [];
+let lane = 1;
+
+function calcLanes() {
+  const bottom = canvas.height - groundH - player.h - 10;
+  const middle = bottom - laneGap;
+  const top = middle - laneGap;
+  lanes = [top, middle, bottom];
+  player.y = lanes[lane];
+}
+calcLanes();
 
 /* ================= PLAYER SPRITE ================= */
 
@@ -96,6 +88,8 @@ let punching = false;
 
 const LANE_X_START = 94;
 const LANE_WIDTH = 1355;
+const LANE_DRAW_WIDTH = 600;
+const LANE_DRAW_HEIGHT = 50;
 
 const LANE_SPRITES = [
   { y: 69, h: 269 },
@@ -112,15 +106,19 @@ let obstacles = [];
 let enemies = [];
 let cakeCount = 0;
 
-/* ================= INPUT ================= */
+/* ================= INPUT (DESKTOP) ================= */
 
 window.addEventListener("keydown", e => {
   if (state !== STATE.RUNNING) return;
+
   if (e.key === "ArrowUp" && lane > 0) lane--;
   if (e.key === "ArrowDown" && lane < 2) lane++;
   if (e.key === " ") punch();
+
   player.y = lanes[lane];
 });
+
+/* ================= INPUT (MOBILE SWIPE + TAP) ================= */
 
 let touchStartY = 0;
 let touchMoved = false;
@@ -129,33 +127,68 @@ canvas.addEventListener("touchstart", e => {
   e.preventDefault();
   touchStartY = e.touches[0].clientY;
   touchMoved = false;
-}, { passive:false });
+}, { passive: false });
 
 canvas.addEventListener("touchmove", e => {
   e.preventDefault();
   touchMoved = true;
-}, { passive:false });
+}, { passive: false });
 
 canvas.addEventListener("touchend", e => {
   e.preventDefault();
   if (state !== STATE.RUNNING) return;
+
   const diff = touchStartY - e.changedTouches[0].clientY;
+
   if (diff > 40 && lane > 0) lane--;
   else if (diff < -40 && lane < 2) lane++;
   else if (!touchMoved || Math.abs(diff) < 20) punch();
+
   player.y = lanes[lane];
-}, { passive:false });
+}, { passive: false });
+
+/* ================= CLICK ================= */
 
 canvas.addEventListener("click", () => {
   if (state === STATE.START) state = STATE.RUNNING;
-  else if (state === STATE.GAMEOVER) state = STATE.START;
+  else if (state === STATE.GAMEOVER) resetGame();
 });
+
+/* ================= GAME FLOW ================= */
+
+function resetGame() {
+  state = STATE.START;
+  cakes = [];
+  obstacles = [];
+  enemies = [];
+  cakeCount = 0;
+  laneScroll = 0;
+}
+
+/* ================= SPAWNING ================= */
+
+setInterval(() => {
+  if (state === STATE.RUNNING)
+    cakes.push({ x: canvas.width + 40, lane: Math.floor(Math.random() * 3) });
+}, 1200);
+
+setInterval(() => {
+  if (state === STATE.RUNNING)
+    obstacles.push({ x: canvas.width + 40, lane: Math.floor(Math.random() * 3) });
+}, 2500);
+
+setInterval(() => {
+  if (state === STATE.RUNNING)
+    enemies.push({ x: canvas.width + 40, lane: Math.floor(Math.random() * 3) });
+}, 4000);
 
 /* ================= COLLISION ================= */
 
 function rectHit(a, b) {
-  return a.x < b.x + b.w && a.x + a.w > b.x &&
-         a.y < b.y + b.h && a.y + a.h > b.y;
+  return a.x < b.x + b.w &&
+         a.x + a.w > b.x &&
+         a.y < b.y + b.h &&
+         a.y + a.h > b.y;
 }
 
 /* ================= PUNCH ================= */
@@ -163,9 +196,17 @@ function rectHit(a, b) {
 function punch() {
   punching = true;
   animFrame = 4;
-  const box = { x: player.x + player.w, y: player.y, w: 60*scale, h: player.h };
-  enemies = enemies.filter(e => !rectHit(box, { x:e.x, y:lanes[e.lane], w:50*scale, h:80*scale }));
-  setTimeout(() => { punching=false; animFrame=0; }, 150);
+
+  const box = { x: player.x + player.w, y: player.y, w: 60, h: player.h };
+
+  enemies = enemies.filter(e =>
+    !rectHit(box, { x: e.x, y: lanes[e.lane], w: 50, h: 80 })
+  );
+
+  setTimeout(() => {
+    punching = false;
+    animFrame = 0;
+  }, 150);
 }
 
 /* ================= UPDATE ================= */
@@ -177,22 +218,24 @@ function update() {
     animTimer = 0;
   }
 
-  laneScroll += 6;
+  laneScroll += speed;
 
-  cakes.forEach(o => o.x -= 6);
-  obstacles.forEach(o => o.x -= 6);
-  enemies.forEach(o => o.x -= 6);
+  cakes.forEach(o => o.x -= speed);
+  obstacles.forEach(o => o.x -= speed);
+  enemies.forEach(o => o.x -= speed);
 
   cakes = cakes.filter(o => {
-    if (rectHit(player,{x:o.x,y:lanes[o.lane]+25*scale,w:30*scale,h:30*scale})) {
-      cakeCount++; return false;
+    if (rectHit(player, { x:o.x, y:lanes[o.lane]+25, w:30, h:30 })) {
+      cakeCount++;
+      return false;
     }
     return o.x > -50;
   });
 
   for (const o of [...obstacles, ...enemies]) {
-    if (rectHit(player,{x:o.x,y:lanes[o.lane],w:50*scale,h:80*scale})) {
-      state = STATE.GAMEOVER; return;
+    if (rectHit(player, { x:o.x, y:lanes[o.lane], w:50, h:80 })) {
+      state = STATE.GAMEOVER;
+      return;
     }
   }
 }
@@ -201,41 +244,59 @@ function update() {
 
 function drawLaneBackgrounds() {
   if (state !== STATE.RUNNING) return;
-  for (let i=0;i<3;i++) {
-    const y = lanes[i] + player.h - 10*scale;
+
+  for (let i = 0; i < 3; i++) {
+    const y = lanes[i] + player.h - 10;
     const s = LANE_SPRITES[i];
-    for (let x=-laneScroll%LANE_DRAW_WIDTH;x<canvas.width;x+=LANE_DRAW_WIDTH) {
-      ctx.drawImage(images.lane, LANE_X_START, s.y, LANE_WIDTH, s.h,
-        x, y, LANE_DRAW_WIDTH, LANE_DRAW_HEIGHT);
+
+    for (let x = -laneScroll % LANE_DRAW_WIDTH; x < canvas.width; x += LANE_DRAW_WIDTH) {
+      ctx.drawImage(
+        images.lane,
+        LANE_X_START, s.y, LANE_WIDTH, s.h,
+        x, y,
+        LANE_DRAW_WIDTH, LANE_DRAW_HEIGHT
+      );
     }
   }
 }
 
 function draw() {
-  ctx.fillStyle="#87ceeb";
+  ctx.fillStyle = "#87ceeb";
   ctx.fillRect(0,0,canvas.width,canvas.height);
+
   drawLaneBackgrounds();
 
   const f = playerFrames[animFrame];
-  ctx.drawImage(images.playerRun,f.x,PLAYER_FRAME_Y,f.w,PLAYER_FRAME_HEIGHT,
-    player.x,player.y,player.w,player.h);
+  ctx.drawImage(
+    images.playerRun,
+    f.x, PLAYER_FRAME_Y, f.w, PLAYER_FRAME_HEIGHT,
+    player.x, player.y,
+    player.w, player.h
+  );
 
-  cakes.forEach(o=>ctx.drawImage(images.cake,o.x,lanes[o.lane]+25*scale,30*scale,30*scale));
-  obstacles.forEach(o=>ctx.drawImage(images.obstacle,o.x,lanes[o.lane],50*scale,80*scale));
-  enemies.forEach(o=>ctx.drawImage(images.enemy,o.x,lanes[o.lane],50*scale,80*scale));
+  cakes.forEach(o => ctx.drawImage(images.cake, o.x, lanes[o.lane]+25, 30, 30));
+  obstacles.forEach(o => ctx.drawImage(images.obstacle, o.x, lanes[o.lane], 50, 80));
+  enemies.forEach(o => ctx.drawImage(images.enemy, o.x, lanes[o.lane], 50, 80));
 
-  ctx.fillStyle="#000";
-  ctx.font=`${20*scale}px Arial`;
-  ctx.fillText("🍰 "+cakeCount,20*scale,30*scale);
+  ctx.fillStyle = "#000";
+  ctx.font = "20px Arial";
+  ctx.fillText("🍰 " + cakeCount, 20, 30);
 
-  ctx.textAlign="center";
-  if (state===STATE.START) ctx.fillText("CLICK TO START",canvas.width/2,canvas.height/2);
-  if (state===STATE.GAMEOVER) ctx.fillText("Game Over — Click",canvas.width/2,canvas.height/2);
+  ctx.textAlign = "center";
+  if (state === STATE.START)
+    ctx.fillText("CLICK TO START", canvas.width/2, canvas.height/2);
+  if (state === STATE.GAMEOVER)
+    ctx.fillText("Game Over — Click", canvas.width/2, canvas.height/2);
 }
 
 /* ================= LOOP ================= */
 
 function loop() {
+  if (imagesLoaded < TOTAL_IMAGES) {
+    requestAnimationFrame(loop);
+    return;
+  }
+
   if (state === STATE.RUNNING) update();
   draw();
   requestAnimationFrame(loop);
