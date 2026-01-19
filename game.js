@@ -1,19 +1,15 @@
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
-/* ================= MOBILE SAFETY ================= */
+/* ===== MOBILE FIX ===== */
 document.body.style.touchAction = "none";
 document.body.style.overflow = "hidden";
 
 /* ================= IMAGE LOADING ================= */
 
 const images = {};
-let imagesLoaded = 0;
-const TOTAL_IMAGES = 5;
-
 function loadImage(key, src) {
   const img = new Image();
-  img.onload = () => imagesLoaded++;
   img.src = src;
   images[key] = img;
 }
@@ -29,17 +25,14 @@ loadImage("lane", "assets/lane.png");
 function resize() {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
+  calcLanes();
 }
 resize();
 window.addEventListener("resize", resize);
 
 /* ================= STATES ================= */
 
-const STATE = {
-  START: 0,
-  RUNNING: 1,
-  GAMEOVER: 2
-};
+const STATE = { START:0, RUNNING:1, GAMEOVER:2 };
 let state = STATE.START;
 
 /* ================= WORLD ================= */
@@ -106,33 +99,20 @@ let obstacles = [];
 let enemies = [];
 let cakeCount = 0;
 
-/* ================= INPUT (DESKTOP) ================= */
-
-window.addEventListener("keydown", e => {
-  if (state !== STATE.RUNNING) return;
-
-  if (e.key === "ArrowUp" && lane > 0) lane--;
-  if (e.key === "ArrowDown" && lane < 2) lane++;
-  if (e.key === " ") punch();
-
-  player.y = lanes[lane];
-});
-
-/* ================= INPUT (MOBILE SWIPE + TAP) ================= */
+/* ================= INPUT ================= */
 
 let touchStartY = 0;
-let touchMoved = false;
 
 canvas.addEventListener("touchstart", e => {
   e.preventDefault();
-  touchStartY = e.touches[0].clientY;
-  touchMoved = false;
-}, { passive: false });
 
-canvas.addEventListener("touchmove", e => {
-  e.preventDefault();
-  touchMoved = true;
-}, { passive: false });
+  if (state === STATE.START) {
+    state = STATE.RUNNING;
+    return;
+  }
+
+  touchStartY = e.touches[0].clientY;
+}, { passive:false });
 
 canvas.addEventListener("touchend", e => {
   e.preventDefault();
@@ -142,12 +122,10 @@ canvas.addEventListener("touchend", e => {
 
   if (diff > 40 && lane > 0) lane--;
   else if (diff < -40 && lane < 2) lane++;
-  else if (!touchMoved || Math.abs(diff) < 20) punch();
+  else punch();
 
   player.y = lanes[lane];
-}, { passive: false });
-
-/* ================= CLICK ================= */
+}, { passive:false });
 
 canvas.addEventListener("click", () => {
   if (state === STATE.START) state = STATE.RUNNING;
@@ -200,7 +178,7 @@ function punch() {
   const box = { x: player.x + player.w, y: player.y, w: 60, h: player.h };
 
   enemies = enemies.filter(e =>
-    !rectHit(box, { x: e.x, y: lanes[e.lane], w: 50, h: 80 })
+    !rectHit(box, { x:e.x, y:lanes[e.lane], w:50, h:80 })
   );
 
   setTimeout(() => {
@@ -225,7 +203,7 @@ function update() {
   enemies.forEach(o => o.x -= speed);
 
   cakes = cakes.filter(o => {
-    if (rectHit(player, { x:o.x, y:lanes[o.lane]+25, w:30, h:30 })) {
+    if (rectHit(player,{x:o.x,y:lanes[o.lane]+25,w:30,h:30})) {
       cakeCount++;
       return false;
     }
@@ -233,7 +211,7 @@ function update() {
   });
 
   for (const o of [...obstacles, ...enemies]) {
-    if (rectHit(player, { x:o.x, y:lanes[o.lane], w:50, h:80 })) {
+    if (rectHit(player,{x:o.x,y:lanes[o.lane],w:50,h:80})) {
       state = STATE.GAMEOVER;
       return;
     }
@@ -243,60 +221,44 @@ function update() {
 /* ================= DRAW ================= */
 
 function drawLaneBackgrounds() {
-  if (state !== STATE.RUNNING) return;
+  if (state === STATE.GAMEOVER) return;
 
-  for (let i = 0; i < 3; i++) {
+  for (let i=0;i<3;i++) {
     const y = lanes[i] + player.h - 10;
     const s = LANE_SPRITES[i];
-
-    for (let x = -laneScroll % LANE_DRAW_WIDTH; x < canvas.width; x += LANE_DRAW_WIDTH) {
-      ctx.drawImage(
-        images.lane,
-        LANE_X_START, s.y, LANE_WIDTH, s.h,
-        x, y,
-        LANE_DRAW_WIDTH, LANE_DRAW_HEIGHT
-      );
+    for (let x=-laneScroll%LANE_DRAW_WIDTH;x<canvas.width;x+=LANE_DRAW_WIDTH) {
+      ctx.drawImage(images.lane, LANE_X_START, s.y, LANE_WIDTH, s.h,
+        x, y, LANE_DRAW_WIDTH, LANE_DRAW_HEIGHT);
     }
   }
 }
 
 function draw() {
-  ctx.fillStyle = "#87ceeb";
+  ctx.fillStyle="#87ceeb";
   ctx.fillRect(0,0,canvas.width,canvas.height);
 
   drawLaneBackgrounds();
 
   const f = playerFrames[animFrame];
-  ctx.drawImage(
-    images.playerRun,
-    f.x, PLAYER_FRAME_Y, f.w, PLAYER_FRAME_HEIGHT,
-    player.x, player.y,
-    player.w, player.h
-  );
+  ctx.drawImage(images.playerRun,f.x,PLAYER_FRAME_Y,f.w,PLAYER_FRAME_HEIGHT,
+    player.x,player.y,player.w,player.h);
 
-  cakes.forEach(o => ctx.drawImage(images.cake, o.x, lanes[o.lane]+25, 30, 30));
-  obstacles.forEach(o => ctx.drawImage(images.obstacle, o.x, lanes[o.lane], 50, 80));
-  enemies.forEach(o => ctx.drawImage(images.enemy, o.x, lanes[o.lane], 50, 80));
+  cakes.forEach(o=>ctx.drawImage(images.cake,o.x,lanes[o.lane]+25,30,30));
+  obstacles.forEach(o=>ctx.drawImage(images.obstacle,o.x,lanes[o.lane],50,80));
+  enemies.forEach(o=>ctx.drawImage(images.enemy,o.x,lanes[o.lane],50,80));
 
-  ctx.fillStyle = "#000";
-  ctx.font = "20px Arial";
-  ctx.fillText("🍰 " + cakeCount, 20, 30);
+  ctx.fillStyle="#000";
+  ctx.font="20px Arial";
+  ctx.fillText("🍰 "+cakeCount,20,30);
 
-  ctx.textAlign = "center";
-  if (state === STATE.START)
-    ctx.fillText("CLICK TO START", canvas.width/2, canvas.height/2);
-  if (state === STATE.GAMEOVER)
-    ctx.fillText("Game Over — Click", canvas.width/2, canvas.height/2);
+  ctx.textAlign="center";
+  if (state===STATE.START) ctx.fillText("TAP TO START",canvas.width/2,canvas.height/2);
+  if (state===STATE.GAMEOVER) ctx.fillText("Game Over — Tap",canvas.width/2,canvas.height/2);
 }
 
 /* ================= LOOP ================= */
 
 function loop() {
-  if (imagesLoaded < TOTAL_IMAGES) {
-    requestAnimationFrame(loop);
-    return;
-  }
-
   if (state === STATE.RUNNING) update();
   draw();
   requestAnimationFrame(loop);
