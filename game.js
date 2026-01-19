@@ -27,7 +27,6 @@ function resize() {
   canvas.height = window.innerHeight;
   calcLanes();
 }
-resize();
 window.addEventListener("resize", resize);
 
 /* ================= STATES ================= */
@@ -57,7 +56,6 @@ function calcLanes() {
   lanes = [top, middle, bottom];
   player.y = lanes[lane];
 }
-calcLanes();
 
 /* ================= PLAYER SPRITE ================= */
 
@@ -101,7 +99,7 @@ let cakeCount = 0;
 
 /* ================= INPUT ================= */
 
-let touchStartY = 0;
+let touchStartY = null;
 
 canvas.addEventListener("touchstart", e => {
   e.preventDefault();
@@ -116,7 +114,7 @@ canvas.addEventListener("touchstart", e => {
 
 canvas.addEventListener("touchend", e => {
   e.preventDefault();
-  if (state !== STATE.RUNNING) return;
+  if (state !== STATE.RUNNING || touchStartY === null) return;
 
   const diff = touchStartY - e.changedTouches[0].clientY;
 
@@ -125,6 +123,7 @@ canvas.addEventListener("touchend", e => {
   else punch();
 
   player.y = lanes[lane];
+  touchStartY = null;
 }, { passive:false });
 
 canvas.addEventListener("click", () => {
@@ -141,6 +140,8 @@ function resetGame() {
   enemies = [];
   cakeCount = 0;
   laneScroll = 0;
+  lane = 1;
+  calcLanes();
 }
 
 /* ================= SPAWNING ================= */
@@ -221,14 +222,18 @@ function update() {
 /* ================= DRAW ================= */
 
 function drawLaneBackgrounds() {
-  if (state === STATE.GAMEOVER) return;
+  if (state !== STATE.RUNNING) return;
 
   for (let i=0;i<3;i++) {
     const y = lanes[i] + player.h - 10;
     const s = LANE_SPRITES[i];
+
     for (let x=-laneScroll%LANE_DRAW_WIDTH;x<canvas.width;x+=LANE_DRAW_WIDTH) {
-      ctx.drawImage(images.lane, LANE_X_START, s.y, LANE_WIDTH, s.h,
-        x, y, LANE_DRAW_WIDTH, LANE_DRAW_HEIGHT);
+      ctx.drawImage(
+        images.lane,
+        LANE_X_START, s.y, LANE_WIDTH, s.h,
+        x, y, LANE_DRAW_WIDTH, LANE_DRAW_HEIGHT
+      );
     }
   }
 }
@@ -240,8 +245,11 @@ function draw() {
   drawLaneBackgrounds();
 
   const f = playerFrames[animFrame];
-  ctx.drawImage(images.playerRun,f.x,PLAYER_FRAME_Y,f.w,PLAYER_FRAME_HEIGHT,
-    player.x,player.y,player.w,player.h);
+  ctx.drawImage(
+    images.playerRun,
+    f.x, PLAYER_FRAME_Y, f.w, PLAYER_FRAME_HEIGHT,
+    player.x, player.y, player.w, player.h
+  );
 
   cakes.forEach(o=>ctx.drawImage(images.cake,o.x,lanes[o.lane]+25,30,30));
   obstacles.forEach(o=>ctx.drawImage(images.obstacle,o.x,lanes[o.lane],50,80));
@@ -252,8 +260,10 @@ function draw() {
   ctx.fillText("🍰 "+cakeCount,20,30);
 
   ctx.textAlign="center";
-  if (state===STATE.START) ctx.fillText("TAP TO START",canvas.width/2,canvas.height/2);
-  if (state===STATE.GAMEOVER) ctx.fillText("Game Over — Tap",canvas.width/2,canvas.height/2);
+  if (state===STATE.START)
+    ctx.fillText("TAP TO START",canvas.width/2,canvas.height/2);
+  if (state===STATE.GAMEOVER)
+    ctx.fillText("Game Over — Tap",canvas.width/2,canvas.height/2);
 }
 
 /* ================= LOOP ================= */
@@ -263,5 +273,7 @@ function loop() {
   draw();
   requestAnimationFrame(loop);
 }
+
+/* ================= INIT ================= */
+resize();
 loop();
- 
