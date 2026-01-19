@@ -5,6 +5,14 @@ const ctx = canvas.getContext("2d");
 document.body.style.touchAction = "none";
 document.body.style.overflow = "hidden";
 
+/* ================= FULLSCREEN ================= */
+
+function requestFullscreen() {
+  const el = document.documentElement;
+  if (el.requestFullscreen) el.requestFullscreen();
+  else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+}
+
 /* ================= IMAGE LOADING ================= */
 
 const images = {};
@@ -109,7 +117,7 @@ let startTime = 0;
 let birthdayShown = false;
 let sonatDone = false;
 
-/* ================= INPUT ================= */
+/* ================= INPUT (MOBILE-FIRST) ================= */
 
 let touchStartY = null;
 
@@ -117,7 +125,13 @@ canvas.addEventListener("touchstart", e => {
   e.preventDefault();
 
   if (state === STATE.START) {
+    requestFullscreen();
     startGame();
+    return;
+  }
+
+  if (state === STATE.GAMEOVER) {
+    resetGame();
     return;
   }
 
@@ -142,11 +156,6 @@ canvas.addEventListener("touchend", e => {
   player.y = lanes[lane];
   touchStartY = null;
 }, { passive:false });
-
-canvas.addEventListener("click", () => {
-  if (state === STATE.START) startGame();
-  else if (state === STATE.GAMEOVER) resetGame();
-});
 
 /* ================= GAME FLOW ================= */
 
@@ -256,15 +265,15 @@ function update() {
   }
 }
 
-/* ================= UI HELPERS ================= */
+/* ================= UI ================= */
 
 function drawOverlay(title, subtitle, color) {
-  ctx.fillStyle = "rgba(0,0,0,0.6)";
+  ctx.fillStyle = "rgba(0,0,0,0.65)";
   ctx.fillRect(0,0,canvas.width,canvas.height);
 
+  ctx.textAlign = "center";
   ctx.fillStyle = "#fff";
   ctx.font = "bold 36px Arial";
-  ctx.textAlign = "center";
   ctx.fillText(title, canvas.width/2, canvas.height/2 - 20);
 
   ctx.font = "20px Arial";
@@ -280,13 +289,9 @@ function drawLaneBackgrounds() {
   for (let i=0;i<3;i++) {
     const y = lanes[i] + player.h - 10;
     const s = LANE_SPRITES[i];
-
     for (let x=-laneScroll%LANE_DRAW_WIDTH;x<canvas.width;x+=LANE_DRAW_WIDTH) {
-      ctx.drawImage(
-        images.lane,
-        LANE_X_START, s.y, LANE_WIDTH, s.h,
-        x, y, LANE_DRAW_WIDTH, LANE_DRAW_HEIGHT
-      );
+      ctx.drawImage(images.lane, LANE_X_START, s.y, LANE_WIDTH, s.h,
+        x, y, LANE_DRAW_WIDTH, LANE_DRAW_HEIGHT);
     }
   }
 }
@@ -334,4 +339,3 @@ function loop() {
 
 resize();
 loop();
- 
