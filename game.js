@@ -193,55 +193,9 @@ function resetGame() {
   animFrame = 0;
   animTimer = 0;
   punching = false;
-
   birthdayDone = false;
   sonatDone = false;
-
   calcLanes();
-}
-
-/* ================= SPAWNING ================= */
-
-setInterval(() => {
-  if (state === STATE.RUNNING)
-    cakes.push({ x: canvas.width + 40, lane: Math.floor(Math.random() * 3) });
-}, 1200);
-
-setInterval(() => {
-  if (state === STATE.RUNNING)
-    obstacles.push({ x: canvas.width + 40, lane: Math.floor(Math.random() * 3) });
-}, 2500);
-
-setInterval(() => {
-  if (state === STATE.RUNNING)
-    enemies.push({ x: canvas.width + 40, lane: Math.floor(Math.random() * 3) });
-}, 4000);
-
-/* ================= COLLISION ================= */
-
-function rectHit(a, b) {
-  return a.x < b.x + b.w &&
-         a.x + a.w > b.x &&
-         a.y < b.y + b.h &&
-         a.y + a.h > b.y;
-}
-
-/* ================= PUNCH ================= */
-
-function punch() {
-  punching = true;
-  animFrame = 4;
-
-  const box = { x: player.x + player.w, y: player.y, w: 60, h: player.h };
-
-  enemies = enemies.filter(e =>
-    !rectHit(box, { x:e.x, y:lanes[e.lane], w:50, h:80 })
-  );
-
-  setTimeout(() => {
-    punching = false;
-    animFrame = 0;
-  }, 150);
 }
 
 /* ================= UPDATE ================= */
@@ -282,75 +236,16 @@ function update() {
     birthdayDone = true;
   }
 
-  if (state === STATE.BIRTHDAY && now - birthdayTime > 2000) {
+  if (state === STATE.BIRTHDAY && !sonatDone && now - birthdayTime > 2000) {
     state = STATE.SONAT;
   }
 
   if (state === STATE.SONAT_RESULT && now - sonatResultTime > 3000) {
     state = STATE.RUNNING;
+    birthdayDone = true;
+    sonatDone = true;
+    startTime = Date.now();
   }
-}
-
-/* ================= UI ================= */
-
-function overlay(title, subtitle, color) {
-  ctx.fillStyle = "rgba(0,0,0,0.65)";
-  ctx.fillRect(0,0,canvas.width,canvas.height);
-
-  ctx.textAlign = "center";
-  ctx.fillStyle = "#fff";
-  ctx.font = "bold 36px Arial";
-  ctx.fillText(title, canvas.width/2, canvas.height/2 - 20);
-
-  if (subtitle) {
-    ctx.font = "20px Arial";
-    ctx.fillStyle = color;
-    subtitle.split("\n").forEach((line,i)=>{
-      ctx.fillText(line, canvas.width/2, canvas.height/2 + 20 + i*24);
-    });
-  }
-}
-
-/* ================= DRAW ================= */
-
-function drawLaneBackgrounds() {
-  if (state !== STATE.RUNNING) return;
-  for (let i=0;i<3;i++) {
-    const y = lanes[i] + player.h - 10;
-    const s = LANE_SPRITES[i];
-    for (let x=-laneScroll%LANE_DRAW_WIDTH;x<canvas.width;x+=LANE_DRAW_WIDTH) {
-      ctx.drawImage(
-        images.lane,
-        LANE_X_START, s.y, LANE_WIDTH, s.h,
-        x, y, LANE_DRAW_WIDTH, LANE_DRAW_HEIGHT
-      );
-    }
-  }
-}
-
-function draw() {
-  ctx.fillStyle="#87ceeb";
-  ctx.fillRect(0,0,canvas.width,canvas.height);
-
-  drawLaneBackgrounds();
-
-  const f = playerFrames[animFrame];
-  ctx.drawImage(images.playerRun,f.x,PLAYER_FRAME_Y,f.w,PLAYER_FRAME_HEIGHT,
-    player.x,player.y,player.w,player.h);
-
-  cakes.forEach(o=>ctx.drawImage(images.cake,o.x,lanes[o.lane]+25,30,30));
-  obstacles.forEach(o=>ctx.drawImage(images.obstacle,o.x,lanes[o.lane],50,80));
-  enemies.forEach(o=>ctx.drawImage(images.enemy,o.x,lanes[o.lane],50,80));
-
-  ctx.fillStyle="#000";
-  ctx.font="20px Arial";
-  ctx.fillText("🍰 "+cakeCount,20,30);
-
-  if (state === STATE.START) overlay("Birthday Runner", "Tap to Start", "#ffd700");
-  if (state === STATE.BIRTHDAY) overlay("🎉 Happy Birthday 🎉", "", "#ff69b4");
-  if (state === STATE.SONAT) overlay("Sonat asks for chelav", "Agree ←   → Disagree", "#7fffd4");
-  if (state === STATE.SONAT_RESULT) overlay(sonatMessage, "", "#ffffff");
-  if (state === STATE.GAMEOVER) overlay("Game Over", "Tap to retry", "#ff4444");
 }
 
 /* ================= LOOP ================= */
@@ -370,5 +265,3 @@ function loop() {
 
 resize();
 loop();
-
- 
