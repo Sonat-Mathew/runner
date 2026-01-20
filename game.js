@@ -12,7 +12,7 @@ function tryFullscreen() {
   document.documentElement.requestFullscreen?.();
 }
 
-/* ================= IMAGE LOADING ================= */
+/* ================= IMAGE LOADING (FIXED) ================= */
 
 const images = {};
 let imagesLoaded = 0;
@@ -172,7 +172,7 @@ canvas.addEventListener("touchstart", e => {
     if (Date.now() < birthdayUnlockTime) return;
     state = STATE.JOKE;
 
-    // ✅ FIX 1: first NO always under AGREE
+    // ✅ FIX 1: First NO always under AGREE
     noX = canvas.width/2 - 100;
     noY = canvas.height/2 + agreeH + 20;
     return;
@@ -182,7 +182,14 @@ canvas.addEventListener("touchstart", e => {
   const y = e.touches[0].clientY;
 
   if (state === STATE.JOKE) {
-    const agree = { x: canvas.width/2 - agreeW/2, y: canvas.height/2, w: agreeW, h: agreeH };
+
+    const agree = {
+      x: canvas.width/2 - agreeW/2,
+      y: canvas.height/2,
+      w: agreeW,
+      h: agreeH
+    };
+
     const no = { x: noX, y: noY, w: 200, h: 60 };
 
     // ✅ FIX 2: NO click has priority
@@ -191,11 +198,13 @@ canvas.addEventListener("touchstart", e => {
 
       if (noClicks <= 3) {
         noX = Math.random() * (canvas.width - 200);
-        noY = Math.max(canvas.height/2 + 120, Math.random() * canvas.height);
-      } else if (noClicks <= 6) {
+        noY = Math.random() * (canvas.height - 200);
+      } 
+      else if (noClicks <= 6) {
         agreeW += 120;
         agreeH += 80;
-      } else {
+      } 
+      else {
         agreeW = canvas.width;
         agreeH = canvas.height;
       }
@@ -239,6 +248,8 @@ function resetGame(){
   cakeCount=0; laneScroll=0; bgScroll=0;
   lane=1; animFrame=0; animTimer=0;
   agreeW=180; agreeH=60; noClicks=0;
+  noX = canvas.width/2 - 100;
+  noY = canvas.height/2 + 100;
   calcLanes();
 }
 
@@ -258,85 +269,37 @@ function punch(){
 /* ================= UPDATE ================= */
 
 function update(){
+  if (state !== STATE.RUNNING) return;
 
-  if (state === STATE.RUNNING) {
-    animTimer+=16;
-    if(!punching && animTimer>animSpeed){animFrame=(animFrame+1)%4;animTimer=0;}
+  animTimer+=16;
+  if(!punching && animTimer>animSpeed){animFrame=(animFrame+1)%4;animTimer=0;}
 
-    laneScroll+=speed;
-    cakes.forEach(o=>o.x-=speed);
-    obstacles.forEach(o=>o.x-=speed);
-    enemies.forEach(o=>o.x-=speed);
+  laneScroll+=speed;
+  cakes.forEach(o=>o.x-=speed);
+  obstacles.forEach(o=>o.x-=speed);
+  enemies.forEach(o=>o.x-=speed);
 
-    cakes=cakes.filter(o=>{
-      if(rectHit(player,{x:o.x,y:lanes[o.lane]+25,w:30,h:30})){
-        cakeCount++; return false;
-      }
-      return o.x>-50;
-    });
-
-    for(const o of [...obstacles,...enemies]){
-      if(rectHit(player,{x:o.x,y:lanes[o.lane],w:50,h:80})){
-        state=STATE.GAMEOVER; return;
-      }
+  cakes=cakes.filter(o=>{
+    if(rectHit(player,{x:o.x,y:lanes[o.lane]+25,w:30,h:30})){
+      cakeCount++; return false;
     }
+    return o.x>-50;
+  });
 
-    if(Date.now()-startTime>15000){
-      state=STATE.BIRTHDAY;
-      birthdayTime=Date.now();
-      birthdayUnlockTime=birthdayTime+2000;
+  for(const o of [...obstacles,...enemies]){
+    if(rectHit(player,{x:o.x,y:lanes[o.lane],w:50,h:80})){
+      state=STATE.GAMEOVER; return;
     }
   }
 
-  if (state === STATE.RESULT && Date.now() - resultTime > 2000) {
-    state = STATE.RUNNING;
-    startTime = Date.now();
+  if(Date.now()-startTime>15000){
+    state=STATE.BIRTHDAY;
+    birthdayTime=Date.now();
+    birthdayUnlockTime=birthdayTime+2000;
   }
 }
 
 /* ================= DRAW ================= */
-
-function draw(){
-  drawBackground();
-  drawLaneBackgrounds();
-
-  const f=playerFrames[animFrame];
-  ctx.drawImage(images.playerRun,f.x,PLAYER_FRAME_Y,f.w,PLAYER_FRAME_HEIGHT,player.x,player.y,player.w,player.h);
-
-  cakes.forEach(o=>ctx.drawImage(images.cake,o.x,lanes[o.lane]+25,30,30));
-  obstacles.forEach(o=>ctx.drawImage(images.obstacle,o.x,lanes[o.lane],50,80));
-  enemies.forEach(o=>ctx.drawImage(images.enemy,o.x,lanes[o.lane],50,80));
-
-  ctx.fillStyle="#000";
-  ctx.font="20px Arial";
-  ctx.fillText("🍰 "+cakeCount,20,30);
-
-  if(state===STATE.START)drawOverlay("Tap to Start");
-  if(state===STATE.GAMEOVER)drawOverlay("Game Over");
-  if(state===STATE.BIRTHDAY)drawOverlay("Happy Birthday 😌🥳");
-  if(state===STATE.RESULT)drawOverlay("yayy 🎉");
-
-  if(state===STATE.JOKE){
-    drawOverlay("Sonat is asking for chelav");
-
-    ctx.fillStyle="#2ecc71";
-    if (agreeW >= canvas.width) {
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-    } else {
-      ctx.fillRect(canvas.width/2-agreeW/2,canvas.height/2,agreeW,agreeH);
-    }
-
-    ctx.fillStyle="#000";
-    ctx.fillText("AGREE",canvas.width/2,canvas.height/2+agreeH/2+10);
-
-    if(agreeW < canvas.width){
-      ctx.fillStyle="#e74c3c";
-      ctx.fillRect(noX,noY,200,60);
-      ctx.fillStyle="#000";
-      ctx.fillText("NO",noX+100,noY+40);
-    }
-  }
-}
 
 function drawLaneBackgrounds(){
   for(let i=0;i<3;i++){
@@ -356,11 +319,46 @@ function drawOverlay(t){
   ctx.fillText(t,canvas.width/2,canvas.height/2);
 }
 
+function draw(){
+  drawBackground();
+  drawLaneBackgrounds();
+
+  const f=playerFrames[animFrame];
+  ctx.drawImage(images.playerRun,f.x,PLAYER_FRAME_Y,f.w,PLAYER_FRAME_HEIGHT,player.x,player.y,player.w,player.h);
+
+  cakes.forEach(o=>ctx.drawImage(images.cake,o.x,lanes[o.lane]+25,30,30));
+  obstacles.forEach(o=>ctx.drawImage(images.obstacle,o.x,lanes[o.lane],50,80));
+  enemies.forEach(o=>ctx.drawImage(images.enemy,o.x,lanes[o.lane],50,80));
+
+  ctx.fillStyle="#000"; ctx.font="20px Arial";
+  ctx.fillText("🍰 "+cakeCount,20,30);
+
+  if(state===STATE.START)drawOverlay("Tap to Start");
+  if(state===STATE.GAMEOVER)drawOverlay("Game Over");
+  if(state===STATE.BIRTHDAY)drawOverlay("Happy Birthday 😌🥳");
+  if(state===STATE.RESULT)drawOverlay("yayy 🎉");
+
+  if(state===STATE.JOKE){
+    drawOverlay("Sonat is asking for chelav");
+
+    ctx.fillStyle="#2ecc71";
+    ctx.fillRect(canvas.width/2-agreeW/2,canvas.height/2,agreeW,agreeH);
+    ctx.fillStyle="#000";
+    ctx.fillText("AGREE",canvas.width/2,canvas.height/2+agreeH/2+10);
+
+    if(agreeW < canvas.width){
+      ctx.fillStyle="#e74c3c";
+      ctx.fillRect(noX,noY,200,60);
+      ctx.fillStyle="#000";
+      ctx.fillText("NO",noX+100,noY+40);
+    }
+  }
+}
+
 /* ================= LOOP ================= */
 
 function loop(){
   update();
   draw();
   requestAnimationFrame(loop);
-                                                         }
- 
+}
