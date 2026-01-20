@@ -12,7 +12,7 @@ function tryFullscreen() {
   document.documentElement.requestFullscreen?.();
 }
 
-/* ================= IMAGE LOADING ================= */
+/* ================= IMAGE LOADING (FIXED) ================= */
 
 const images = {};
 let imagesLoaded = 0;
@@ -181,18 +181,11 @@ canvas.addEventListener("touchstart", e => {
     const agree = { x: canvas.width/2 - agreeW/2, y: canvas.height/2, w: agreeW, h: agreeH };
     const no = { x: noX, y: noY, w: 200, h: 60 };
 
-    if (x > agree.x && x < agree.x + agree.w && y > agree.y && y < agree.y + agree.h) {
-      state = STATE.RESULT;
-      resultTime = Date.now();
-      return;
-    }
-
     if (x > no.x && x < no.x + no.w && y > no.y && y < no.y + no.h) {
       noClicks++;
-
       if (noClicks <= 3) {
         noX = Math.random() * (canvas.width - 200);
-        noY = Math.max(canvas.height/2 + 120, Math.random() * canvas.height);
+        noY = Math.random() * (canvas.height - 200);
       } else if (noClicks <= 6) {
         agreeW += 120;
         agreeH += 80;
@@ -200,6 +193,13 @@ canvas.addEventListener("touchstart", e => {
         agreeW = canvas.width;
         agreeH = canvas.height;
       }
+      return;
+    }
+
+    if (x > agree.x && x < agree.x + agree.w && y > agree.y && y < agree.y + agree.h) {
+      state = STATE.RESULT;
+      resultTime = Date.now();
+      return;
     }
     return;
   }
@@ -282,7 +282,7 @@ function update(){
     }
   }
 
-  /* âœ… RESULT â†’ RESUME */
+  /* ✅ RESULT → RESUME */
   if (state === STATE.RESULT && Date.now() - resultTime > 2000) {
     state = STATE.RUNNING;
     startTime = Date.now();
@@ -302,25 +302,19 @@ function draw(){
   obstacles.forEach(o=>ctx.drawImage(images.obstacle,o.x,lanes[o.lane],50,80));
   enemies.forEach(o=>ctx.drawImage(images.enemy,o.x,lanes[o.lane],50,80));
 
-  ctx.fillStyle="#000";
-  ctx.font="20px Arial";
-  ctx.fillText("ðŸ° "+cakeCount,20,30);
+  ctx.fillStyle="#000"; ctx.font="20px Arial";
+  ctx.fillText("🍰 "+cakeCount,20,30);
 
   if(state===STATE.START)drawOverlay("Tap to Start");
   if(state===STATE.GAMEOVER)drawOverlay("Game Over");
-  if(state===STATE.BIRTHDAY)drawOverlay("Happy Birthday ðŸ˜ŒðŸ¥³");
-  if(state===STATE.RESULT)drawOverlay("yayy ðŸŽ‰");
+  if(state===STATE.BIRTHDAY)drawOverlay("Happy Birthday 😌🥳");
+  if(state===STATE.RESULT)drawOverlay("yayy 🎉");
 
   if(state===STATE.JOKE){
     drawOverlay("Sonat is asking for chelav");
 
     ctx.fillStyle="#2ecc71";
-    if (agreeW >= canvas.width) {
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-    } else {
-      ctx.fillRect(canvas.width/2-agreeW/2,canvas.height/2,agreeW,agreeH);
-    }
-
+    ctx.fillRect(canvas.width/2-agreeW/2,canvas.height/2,agreeW,agreeH);
     ctx.fillStyle="#000";
     ctx.fillText("AGREE",canvas.width/2,canvas.height/2+agreeH/2+10);
 
@@ -333,24 +327,6 @@ function draw(){
   }
 }
 
-function drawLaneBackgrounds(){
-  for(let i=0;i<3;i++){
-    const y=lanes[i]+player.h-10,s=LANE_SPRITES[i];
-    for(let x=-laneScroll%LANE_DRAW_WIDTH;x<canvas.width;x+=LANE_DRAW_WIDTH){
-      ctx.drawImage(images.lane,LANE_X_START,s.y,LANE_WIDTH,s.h,x,y,LANE_DRAW_WIDTH,LANE_DRAW_HEIGHT);
-    }
-  }
-}
-
-function drawOverlay(t){
-  ctx.fillStyle="rgba(0,0,0,0.6)";
-  ctx.fillRect(0,0,canvas.width,canvas.height);
-  ctx.fillStyle="#fff";
-  ctx.font="32px Arial";
-  ctx.textAlign="center";
-  ctx.fillText(t,canvas.width/2,canvas.height/2);
-}
-
 /* ================= LOOP ================= */
 
 function loop(){
@@ -358,4 +334,3 @@ function loop(){
   draw();
   requestAnimationFrame(loop);
 }
- 
