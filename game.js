@@ -5,16 +5,6 @@ const ctx = canvas.getContext("2d");
 document.body.style.touchAction = "none";
 document.body.style.overflow = "hidden";
 
-/* ================= FULLSCREEN ================= */
-
-function tryFullscreen() {
-  if (window.innerWidth > window.innerHeight) {
-    const el = document.documentElement;
-    if (el.requestFullscreen) el.requestFullscreen();
-    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
-  }
-}
-
 /* ================= IMAGE LOADING ================= */
 
 const images = {};
@@ -24,7 +14,7 @@ function loadImage(key, src) {
   images[key] = img;
 }
 
-loadImage("background", "assets/background.png");
+loadImage("background", "assets/background.png"); // ✅ BACKGROUND
 loadImage("playerRun", "assets/player_run.png");
 loadImage("cake", "assets/cake.png");
 loadImage("obstacle", "assets/obstacle.png");
@@ -133,25 +123,87 @@ let obstacles = [];
 let enemies = [];
 let cakeCount = 0;
 
-/* ================= SPAWNING (FIXED) ================= */
+/* ================= SPAWNING ================= */
 
 setInterval(() => {
-  if (state === STATE.RUNNING) {
+  if (state === STATE.RUNNING)
     cakes.push({ x: canvas.width + 40, lane: Math.floor(Math.random() * 3) });
-  }
 }, 1200);
 
 setInterval(() => {
-  if (state === STATE.RUNNING) {
+  if (state === STATE.RUNNING)
     obstacles.push({ x: canvas.width + 40, lane: Math.floor(Math.random() * 3) });
-  }
 }, 2500);
 
 setInterval(() => {
-  if (state === STATE.RUNNING) {
+  if (state === STATE.RUNNING)
     enemies.push({ x: canvas.width + 40, lane: Math.floor(Math.random() * 3) });
-  }
 }, 4000);
+
+/* ================= INPUT ================= */
+
+let touchStartY = null;
+
+canvas.addEventListener("touchstart", e => {
+  e.preventDefault();
+
+  if (state === STATE.START) return startGame();
+  if (state === STATE.GAMEOVER) return resetGame();
+
+  if (state === STATE.SONAT) {
+    if (e.touches[0].clientX < canvas.width / 2) {
+      sonatMessage = "yayyy 🎉";
+    } else {
+      sonatMessage = "kolladi 🖐\nsonat took all the cakes";
+      cakeCount = 0;
+    }
+    sonatResultTime = Date.now();
+    state = STATE.SONAT_RESULT;
+    sonatDone = true;
+    return;
+  }
+
+  if (state === STATE.RUNNING) {
+    touchStartY = e.touches[0].clientY;
+  }
+}, { passive:false });
+
+canvas.addEventListener("touchend", e => {
+  e.preventDefault();
+  if (state !== STATE.RUNNING || touchStartY === null) return;
+
+  const diff = touchStartY - e.changedTouches[0].clientY;
+  if (diff > 40 && lane > 0) lane--;
+  else if (diff < -40 && lane < 2) lane++;
+  else punch();
+
+  player.y = lanes[lane];
+  touchStartY = null;
+}, { passive:false });
+
+/* ================= GAME FLOW ================= */
+
+function startGame() {
+  state = STATE.RUNNING;
+  startTime = Date.now();
+}
+
+function resetGame() {
+  state = STATE.START;
+  cakes = [];
+  obstacles = [];
+  enemies = [];
+  cakeCount = 0;
+  laneScroll = 0;
+  bgScroll = 0;
+  lane = 1;
+  animFrame = 0;
+  animTimer = 0;
+  punching = false;
+  birthdayDone = false;
+  sonatDone = false;
+  calcLanes();
+}
 
 /* ================= COLLISION ================= */
 
@@ -167,16 +219,9 @@ function rectHit(a, b) {
 function punch() {
   punching = true;
   animFrame = 4;
-
   const box = { x: player.x + player.w, y: player.y, w: 60, h: player.h };
-  enemies = enemies.filter(e =>
-    !rectHit(box, { x: e.x, y: lanes[e.lane], w: 50, h: 80 })
-  );
-
-  setTimeout(() => {
-    punching = false;
-    animFrame = 0;
-  }, 150);
+  enemies = enemies.filter(e => !rectHit(box, { x:e.x, y:lanes[e.lane], w:50, h:80 }));
+  setTimeout(() => { punching = false; animFrame = 0; }, 150);
 }
 
 /* ================= UPDATE ================= */
@@ -189,32 +234,14 @@ function update() {
   }
 
   laneScroll += speed;
-
   cakes.forEach(o => o.x -= speed);
   obstacles.forEach(o => o.x -= speed);
   enemies.forEach(o => o.x -= speed);
-
-  cakes = cakes.filter(o => {
-    if (rectHit(player,{x:o.x,y:lanes[o.lane]+25,w:30,h:30})) {
-      cakeCount++;
-      return false;
-    }
-    return o.x > -50;
-  });
-
-  for (const o of [...obstacles, ...enemies]) {
-    if (rectHit(player,{x:o.x,y:lanes[o.lane],w:50,h:80})) {
-      state = STATE.GAMEOVER;
-      return;
-    }
-  }
 }
 
 /* ================= DRAW ================= */
 
 function drawLaneBackgrounds() {
-  if (state !== STATE.RUNNING) return;
-
   for (let i = 0; i < 3; i++) {
     const y = lanes[i] + player.h - 10;
     const s = LANE_SPRITES[i];
@@ -231,12 +258,11 @@ function drawLaneBackgrounds() {
 }
 
 function draw() {
-  drawBackground();
-  drawLaneBackgrounds();
+  drawBackground();          // ✅ background first
+  drawLaneBackgrounds();     // ✅ lanes visible
 
   const f = playerFrames[animFrame];
-  ctx.drawImage(
-    images.playerRun,
+  ctx.drawImage(images.playerRun,
     f.x, PLAYER_FRAME_Y, f.w, PLAYER_FRAME_HEIGHT,
     player.x, player.y, player.w, player.h
   );
@@ -248,6 +274,15 @@ function draw() {
   ctx.fillStyle = "#000";
   ctx.font = "20px Arial";
   ctx.fillText("🍰 " + cakeCount, 20, 30);
+
+  if (state === STATE.START) {
+    ctx.fillStyle = "rgba(0,0,0,0.6)";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle = "#fff";
+    ctx.font = "32px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText("Tap to Start", canvas.width/2, canvas.height/2);
+  }
 }
 
 /* ================= LOOP ================= */
@@ -262,6 +297,3 @@ function loop() {
 
 resize();
 loop();
- 
-
-
