@@ -169,14 +169,15 @@ let noY = canvas.height/2 + 100;
 let touchStartY = null;
 
 canvas.addEventListener("touchstart", e => {
-  e.preventDefault();
-  tryFullscreen();
 
-  // 🎵 start music on first interaction
+  // 🎵 MUST be first (mobile autoplay rule)
   if (!musicStarted) {
-    bgMusic.play().catch(()=>{});
+    bgMusic.play();
     musicStarted = true;
   }
+
+  e.preventDefault();
+  tryFullscreen();
 
   if (state === STATE.START) return startGame();
   if (state === STATE.GAMEOVER) return resetGame();
@@ -285,7 +286,7 @@ function update(){
     for(const o of [...obstacles,...enemies]){
       if(rectHit(player,{x:o.x,y:lanes[o.lane],w:50,h:80})){
         state=STATE.GAMEOVER;
-        bgMusic.pause(); // 🎵 stop music on game over
+        bgMusic.pause();
         return;
       }
     }
@@ -366,6 +367,3 @@ function loop(){
   draw();
   requestAnimationFrame(loop);
 }
- 
-
- 
