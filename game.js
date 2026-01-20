@@ -12,6 +12,13 @@ function tryFullscreen() {
   document.documentElement.requestFullscreen?.();
 }
 
+/* ================= BACKGROUND MUSIC (ADDED) ================= */
+
+const bgMusic = new Audio("assets/bg_music.mp3");
+bgMusic.loop = true;
+bgMusic.volume = 0.4;
+let musicStarted = false;
+
 /* ================= IMAGE LOADING (FIXED) ================= */
 
 const images = {};
@@ -165,6 +172,12 @@ canvas.addEventListener("touchstart", e => {
   e.preventDefault();
   tryFullscreen();
 
+  // 🎵 start music on first interaction
+  if (!musicStarted) {
+    bgMusic.play().catch(()=>{});
+    musicStarted = true;
+  }
+
   if (state === STATE.START) return startGame();
   if (state === STATE.GAMEOVER) return resetGame();
 
@@ -271,7 +284,9 @@ function update(){
 
     for(const o of [...obstacles,...enemies]){
       if(rectHit(player,{x:o.x,y:lanes[o.lane],w:50,h:80})){
-        state=STATE.GAMEOVER; return;
+        state=STATE.GAMEOVER;
+        bgMusic.pause(); // 🎵 stop music on game over
+        return;
       }
     }
 
@@ -282,7 +297,6 @@ function update(){
     }
   }
 
-  /* ✅ RESULT → RESUME */
   if (state === STATE.RESULT && Date.now() - resultTime > 2000) {
     state = STATE.RUNNING;
     startTime = Date.now();
@@ -327,6 +341,24 @@ function draw(){
   }
 }
 
+function drawLaneBackgrounds(){
+  for(let i=0;i<3;i++){
+    const y=lanes[i]+player.h-10,s=LANE_SPRITES[i];
+    for(let x=-laneScroll%LANE_DRAW_WIDTH;x<canvas.width;x+=LANE_DRAW_WIDTH){
+      ctx.drawImage(images.lane,LANE_X_START,s.y,LANE_WIDTH,s.h,x,y,LANE_DRAW_WIDTH,LANE_DRAW_HEIGHT);
+    }
+  }
+}
+
+function drawOverlay(t){
+  ctx.fillStyle="rgba(0,0,0,0.6)";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle="#fff";
+  ctx.font="32px Arial";
+  ctx.textAlign="center";
+  ctx.fillText(t,canvas.width/2,canvas.height/2);
+}
+
 /* ================= LOOP ================= */
 
 function loop(){
@@ -334,5 +366,3 @@ function loop(){
   draw();
   requestAnimationFrame(loop);
 }
-
- 
