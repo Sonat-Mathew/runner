@@ -12,11 +12,21 @@ function tryFullscreen() {
   document.documentElement.requestFullscreen?.();
 }
 
-/* ================= IMAGE LOADING ================= */
+/* ================= IMAGE LOADING (FIXED) ================= */
 
 const images = {};
+let imagesLoaded = 0;
+const TOTAL_IMAGES = 6;
+
 function loadImage(key, src) {
   const img = new Image();
+  img.onload = () => {
+    imagesLoaded++;
+    if (imagesLoaded === TOTAL_IMAGES) {
+      resize();
+      loop(); // ✅ start ONLY after all images load
+    }
+  };
   img.src = src;
   images[key] = img;
 }
@@ -112,7 +122,7 @@ const bgSpeed = 1.2;
 
 function drawBackground() {
   const img = images.background;
-  if (!img || !img.width) return;
+  if (!img.width) return;
 
   bgScroll += bgSpeed;
   const x = -bgScroll % img.width;
@@ -140,11 +150,12 @@ let birthdayTime = 0;
 let birthdayUnlockTime = 0;
 let resultTime = 0;
 
-/* ================= JOKE (UPDATED LOGIC ONLY) ================= */
+/* ================= JOKE (FIXED LOGIC) ================= */
 
 let agreeW = 180, agreeH = 60;
 let noClicks = 0;
-let noX = 0, noY = 0;
+let noX = canvas.width/2 - 100;
+let noY = canvas.height/2 + 100;
 
 /* ================= INPUT ================= */
 
@@ -160,8 +171,6 @@ canvas.addEventListener("touchstart", e => {
   if (state === STATE.BIRTHDAY) {
     if (Date.now() < birthdayUnlockTime) return;
     state = STATE.JOKE;
-    noX = canvas.width/2 - 100;
-    noY = canvas.height/2 + agreeH + 20;
     return;
   }
 
@@ -169,6 +178,7 @@ canvas.addEventListener("touchstart", e => {
   const y = e.touches[0].clientY;
 
   if (state === STATE.JOKE) {
+
     const agree = {
       x: canvas.width/2 - agreeW/2,
       y: canvas.height/2,
@@ -232,12 +242,14 @@ function resetGame(){
   cakeCount=0; laneScroll=0; bgScroll=0;
   lane=1; animFrame=0; animTimer=0;
   agreeW=180; agreeH=60; noClicks=0;
+  noX = canvas.width/2 - 100;
+  noY = canvas.height/2 + 100;
   calcLanes();
 }
 
 /* ================= COLLISION ================= */
 
-const rectHit=(a,b)=>a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
+const rectHit = (a,b)=>a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
 
 /* ================= PUNCH ================= */
 
@@ -254,9 +266,7 @@ function update(){
   if (state !== STATE.RUNNING) return;
 
   animTimer+=16;
-  if(!punching&&animTimer>animSpeed){
-    animFrame=(animFrame+1)%4; animTimer=0;
-  }
+  if(!punching && animTimer>animSpeed){animFrame=(animFrame+1)%4;animTimer=0;}
 
   laneScroll+=speed;
   cakes.forEach(o=>o.x-=speed);
@@ -304,7 +314,8 @@ function drawOverlay(t){
 }
 
 function draw(){
-  drawBackground(); drawLaneBackgrounds();
+  drawBackground();
+  drawLaneBackgrounds();
 
   const f=playerFrames[animFrame];
   ctx.drawImage(images.playerRun,f.x,PLAYER_FRAME_Y,f.w,PLAYER_FRAME_HEIGHT,player.x,player.y,player.w,player.h);
@@ -323,12 +334,13 @@ function draw(){
 
   if(state===STATE.JOKE){
     drawOverlay("Sonat is asking for chelav");
+
     ctx.fillStyle="#2ecc71";
     ctx.fillRect(canvas.width/2-agreeW/2,canvas.height/2,agreeW,agreeH);
     ctx.fillStyle="#000";
     ctx.fillText("AGREE",canvas.width/2,canvas.height/2+agreeH/2+10);
 
-    if(agreeW<canvas.width){
+    if(agreeW < canvas.width){
       ctx.fillStyle="#e74c3c";
       ctx.fillRect(noX,noY,200,60);
       ctx.fillStyle="#000";
@@ -343,8 +355,4 @@ function loop(){
   update();
   draw();
   requestAnimationFrame(loop);
-}
-
-resize();
-loop();
- 
+                                                         }
