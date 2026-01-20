@@ -100,6 +100,21 @@ let animTimer = 0;
 const animSpeed = 120;
 let punching = false;
 
+/* ================= LANE ================= */
+
+const LANE_X_START = 94;
+const LANE_WIDTH = 1355;
+const LANE_DRAW_WIDTH = 600;
+const LANE_DRAW_HEIGHT = 50;
+
+const LANE_SPRITES = [
+  { y: 69, h: 269 },
+  { y: 387, h: 275 },
+  { y: 719, h: 267 }
+];
+
+let laneScroll = 0;
+
 /* ================= BACKGROUND ================= */
 
 let bgScroll = 0;
@@ -131,6 +146,7 @@ setInterval(() => state === STATE.RUNNING && enemies.push({ x: canvas.width + 40
 /* ================= TIMERS ================= */
 
 let startTime = 0;
+let birthdayTime = 0;
 let birthdayUnlockTime = 0;
 let resultTime = 0;
 
@@ -138,8 +154,8 @@ let resultTime = 0;
 
 let agreeW = 180, agreeH = 60;
 let noClicks = 0;
-let noX = 0;
-let noY = 0;
+let noX = canvas.width/2 - 100;
+let noY = canvas.height/2 + 100;
 
 /* ================= INPUT ================= */
 
@@ -156,7 +172,7 @@ canvas.addEventListener("touchstart", e => {
     if (Date.now() < birthdayUnlockTime) return;
     state = STATE.JOKE;
 
-    // ✅ FIRST NO strictly under AGREE
+    // ✅ FIX 1: first NO always under AGREE
     noX = canvas.width/2 - 100;
     noY = canvas.height/2 + agreeH + 20;
     return;
@@ -169,13 +185,13 @@ canvas.addEventListener("touchstart", e => {
     const agree = { x: canvas.width/2 - agreeW/2, y: canvas.height/2, w: agreeW, h: agreeH };
     const no = { x: noX, y: noY, w: 200, h: 60 };
 
-    // ✅ PRIORITY: NO first
+    // ✅ FIX 2: NO click has priority
     if (x > no.x && x < no.x + no.w && y > no.y && y < no.y + no.h) {
       noClicks++;
 
       if (noClicks <= 3) {
         noX = Math.random() * (canvas.width - 200);
-        noY = Math.max(canvas.height/2 + agreeH + 20, Math.random() * canvas.height);
+        noY = Math.max(canvas.height/2 + 120, Math.random() * canvas.height);
       } else if (noClicks <= 6) {
         agreeW += 120;
         agreeH += 80;
@@ -186,13 +202,11 @@ canvas.addEventListener("touchstart", e => {
       return;
     }
 
-    // ✅ AGREE only if AGREE itself is clicked
     if (x > agree.x && x < agree.x + agree.w && y > agree.y && y < agree.y + agree.h) {
       state = STATE.RESULT;
       resultTime = Date.now();
       return;
     }
-
     return;
   }
 
@@ -269,7 +283,8 @@ function update(){
 
     if(Date.now()-startTime>15000){
       state=STATE.BIRTHDAY;
-      birthdayUnlockTime=Date.now()+2000;
+      birthdayTime=Date.now();
+      birthdayUnlockTime=birthdayTime+2000;
     }
   }
 
@@ -306,7 +321,7 @@ function draw(){
 
     ctx.fillStyle="#2ecc71";
     if (agreeW >= canvas.width) {
-      ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
     } else {
       ctx.fillRect(canvas.width/2-agreeW/2,canvas.height/2,agreeW,agreeH);
     }
@@ -347,6 +362,4 @@ function loop(){
   update();
   draw();
   requestAnimationFrame(loop);
-}
-
- 
+                                                         }
