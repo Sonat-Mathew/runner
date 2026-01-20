@@ -12,12 +12,12 @@ function tryFullscreen() {
   document.documentElement.requestFullscreen?.();
 }
 
-/* ================= BACKGROUND MUSIC (FIXED FOR REAL) ================= */
+/* ================= BACKGROUND MUSIC ================= */
 
 let bgMusic = null;
 let musicStarted = false;
 
-/* ================= IMAGE LOADING (FIXED) ================= */
+/* ================= IMAGE LOADING ================= */
 
 const images = {};
 let imagesLoaded = 0;
@@ -144,14 +144,13 @@ let cakeCount = 0;
 
 /* ================= SPAWNING ================= */
 
-setInterval(() => state === STATE.RUNNING && cakes.push({ x: canvas.width + 40, lane: Math.random() * 3 | 0 }), 1200);
-setInterval(() => state === STATE.RUNNING && obstacles.push({ x: canvas.width + 40, lane: Math.random() * 3 | 0 }), 2500);
-setInterval(() => state === STATE.RUNNING && enemies.push({ x: canvas.width + 40, lane: Math.random() * 3 | 0 }), 4000);
+setInterval(() => state === STATE.RUNNING && cakes.push({ x: canvas.width + 40, lane: Math.random()*3|0 }), 1200);
+setInterval(() => state === STATE.RUNNING && obstacles.push({ x: canvas.width + 40, lane: Math.random()*3|0 }), 2500);
+setInterval(() => state === STATE.RUNNING && enemies.push({ x: canvas.width + 40, lane: Math.random()*3|0 }), 4000);
 
 /* ================= TIMERS ================= */
 
 let startTime = 0;
-let birthdayTime = 0;
 let birthdayUnlockTime = 0;
 let resultTime = 0;
 
@@ -159,8 +158,8 @@ let resultTime = 0;
 
 let agreeW = 180, agreeH = 60;
 let noClicks = 0;
-let noX = canvas.width / 2 - 100;
-let noY = canvas.height / 2 + 100;
+let noX = 0;
+let noY = 0;
 
 /* ================= INPUT ================= */
 
@@ -168,7 +167,6 @@ let touchStartY = null;
 
 canvas.addEventListener("touchstart", e => {
 
-  // ✅ FINAL AUDIO FIX (muted autoplay unlock)
   if (!musicStarted) {
     bgMusic = new Audio("assets/bg_music.mp3");
     bgMusic.loop = true;
@@ -182,6 +180,9 @@ canvas.addEventListener("touchstart", e => {
   e.preventDefault();
   tryFullscreen();
 
+  const x = e.touches[0].clientX;
+  const y = e.touches[0].clientY;
+
   if (state === STATE.START) return startGame();
   if (state === STATE.GAMEOVER) return resetGame();
 
@@ -191,10 +192,51 @@ canvas.addEventListener("touchstart", e => {
     return;
   }
 
-  const y = e.touches[0].clientY;
+  /* ===== JOKE TOUCH FIX ===== */
+  if (state === STATE.JOKE) {
+    const agree = {
+      x: canvas.width / 2 - agreeW / 2,
+      y: canvas.height / 2,
+      w: agreeW,
+      h: agreeH
+    };
+
+    const no = {
+      x: noClicks === 0 ? agree.x : noX,
+      y: noClicks === 0 ? agree.y + agree.h + 20 : noY,
+      w: 200,
+      h: 60
+    };
+
+    // NO clicked
+    if (x > no.x && x < no.x + no.w && y > no.y && y < no.y + no.h) {
+      noClicks++;
+
+      if (noClicks <= 3) {
+        noX = Math.random() * (canvas.width - 200);
+        noY = Math.random() * (canvas.height - 200);
+      } else if (noClicks <= 6) {
+        agreeW += 120;
+        agreeH += 80;
+      } else {
+        agreeW = canvas.width;
+        agreeH = canvas.height;
+      }
+      return;
+    }
+
+    // AGREE clicked
+    if (x > agree.x && x < agree.x + agree.w && y > agree.y && y < agree.y + agree.h) {
+      state = STATE.RESULT;
+      resultTime = Date.now();
+      return;
+    }
+    return;
+  }
+
   if (state === STATE.RUNNING) touchStartY = y;
 
-}, { passive: false });
+},{ passive:false });
 
 canvas.addEventListener("touchend", e => {
   e.preventDefault();
@@ -207,73 +249,67 @@ canvas.addEventListener("touchend", e => {
 
   player.y = lanes[lane];
   touchStartY = null;
-}, { passive: false });
+},{ passive:false });
 
 /* ================= GAME FLOW ================= */
 
-function startGame() {
+function startGame(){
   state = STATE.RUNNING;
   startTime = Date.now();
 }
 
-function resetGame() {
+function resetGame(){
   state = STATE.START;
-  cakes = []; obstacles = []; enemies = [];
-  cakeCount = 0; laneScroll = 0; bgScroll = 0;
-  lane = 1; animFrame = 0; animTimer = 0;
-  agreeW = 180; agreeH = 60; noClicks = 0;
+  cakes=[]; obstacles=[]; enemies=[];
+  cakeCount=0; laneScroll=0; bgScroll=0;
+  lane=1; animFrame=0; animTimer=0;
+  agreeW=180; agreeH=60; noClicks=0;
   calcLanes();
 }
 
 /* ================= COLLISION ================= */
 
-const rectHit = (a, b) =>
-  a.x < b.x + b.w && a.x + a.w > b.x &&
-  a.y < b.y + b.h && a.y + a.h > b.y;
+const rectHit = (a,b)=>a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
 
 /* ================= PUNCH ================= */
 
-function punch() {
-  punching = true; animFrame = 4;
-  const box = { x: player.x + player.w, y: player.y, w: 60, h: player.h };
-  enemies = enemies.filter(e => !rectHit(box, { x: e.x, y: lanes[e.lane], w: 50, h: 80 }));
-  setTimeout(() => { punching = false; animFrame = 0; }, 150);
+function punch(){
+  punching=true; animFrame=4;
+  const box={x:player.x+player.w,y:player.y,w:60,h:player.h};
+  enemies=enemies.filter(e=>!rectHit(box,{x:e.x,y:lanes[e.lane],w:50,h:80}));
+  setTimeout(()=>{punching=false;animFrame=0;},150);
 }
 
 /* ================= UPDATE ================= */
 
-function update() {
+function update(){
   if (state === STATE.RUNNING) {
-    animTimer += 16;
-    if (!punching && animTimer > animSpeed) {
-      animFrame = (animFrame + 1) % 4;
-      animTimer = 0;
-    }
+    animTimer+=16;
+    if(!punching && animTimer>animSpeed){animFrame=(animFrame+1)%4;animTimer=0;}
 
-    laneScroll += speed;
-    cakes.forEach(o => o.x -= speed);
-    obstacles.forEach(o => o.x -= speed);
-    enemies.forEach(o => o.x -= speed);
+    laneScroll+=speed;
+    cakes.forEach(o=>o.x-=speed);
+    obstacles.forEach(o=>o.x-=speed);
+    enemies.forEach(o=>o.x-=speed);
 
-    cakes = cakes.filter(o => {
-      if (rectHit(player, { x: o.x, y: lanes[o.lane] + 25, w: 30, h: 30 })) {
+    cakes=cakes.filter(o=>{
+      if(rectHit(player,{x:o.x,y:lanes[o.lane]+25,w:30,h:30})){
         cakeCount++; return false;
       }
-      return o.x > -50;
+      return o.x>-50;
     });
 
-    for (const o of [...obstacles, ...enemies]) {
-      if (rectHit(player, { x: o.x, y: lanes[o.lane], w: 50, h: 80 })) {
-        state = STATE.GAMEOVER;
-        if (bgMusic) bgMusic.pause();
+    for(const o of [...obstacles,...enemies]){
+      if(rectHit(player,{x:o.x,y:lanes[o.lane],w:50,h:80})){
+        state=STATE.GAMEOVER;
+        if(bgMusic) bgMusic.pause();
         return;
       }
     }
 
-    if (Date.now() - startTime > 15000) {
-      state = STATE.BIRTHDAY;
-      birthdayTime = Date.now();
-      birthdayUnlockTime = birthdayTime + 2000;
+    if(Date.now()-startTime>15000){
+      state=STATE.BIRTHDAY;
+      birthdayUnlockTime=Date.now()+2000;
     }
   }
 
@@ -285,68 +321,47 @@ function update() {
 
 /* ================= DRAW ================= */
 
-function draw() {
+function draw(){
   drawBackground();
   drawLaneBackgrounds();
 
-  const f = playerFrames[animFrame];
-  ctx.drawImage(images.playerRun, f.x, PLAYER_FRAME_Y, f.w, PLAYER_FRAME_HEIGHT,
-    player.x, player.y, player.w, player.h);
+  const f=playerFrames[animFrame];
+  ctx.drawImage(images.playerRun,f.x,PLAYER_FRAME_Y,f.w,PLAYER_FRAME_HEIGHT,player.x,player.y,player.w,player.h);
 
-  cakes.forEach(o => ctx.drawImage(images.cake, o.x, lanes[o.lane] + 25, 30, 30));
-  obstacles.forEach(o => ctx.drawImage(images.obstacle, o.x, lanes[o.lane], 50, 80));
-  enemies.forEach(o => ctx.drawImage(images.enemy, o.x, lanes[o.lane], 50, 80));
+  cakes.forEach(o=>ctx.drawImage(images.cake,o.x,lanes[o.lane]+25,30,30));
+  obstacles.forEach(o=>ctx.drawImage(images.obstacle,o.x,lanes[o.lane],50,80));
+  enemies.forEach(o=>ctx.drawImage(images.enemy,o.x,lanes[o.lane],50,80));
 
-  ctx.fillStyle = "#000";
-  ctx.font = "20px Arial";
-  ctx.fillText("🍰 " + cakeCount, 20, 30);
+  ctx.fillStyle="#000"; ctx.font="20px Arial";
+  ctx.fillText("🍰 "+cakeCount,20,30);
 
-  if (state === STATE.START) drawOverlay("Tap to Start");
-  if (state === STATE.GAMEOVER) drawOverlay("Game Over");
-  if (state === STATE.BIRTHDAY) drawOverlay("Happy Birthday 😌🥳");
-  if (state === STATE.RESULT) drawOverlay("yayy 🎉");
+  if(state===STATE.START)drawOverlay("Tap to Start");
+  if(state===STATE.GAMEOVER)drawOverlay("Game Over");
+  if(state===STATE.BIRTHDAY)drawOverlay("Happy Birthday 😌🥳");
+  if(state===STATE.RESULT)drawOverlay("yayy 🎉");
 
-  if (state === STATE.JOKE) {
+  if(state===STATE.JOKE){
     drawOverlay("Sonat is asking for chelav");
 
-    ctx.fillStyle = "#2ecc71";
-    ctx.fillRect(canvas.width / 2 - agreeW / 2, canvas.height / 2, agreeW, agreeH);
-    ctx.fillStyle = "#000";
-    ctx.fillText("AGREE", canvas.width / 2, canvas.height / 2 + agreeH / 2 + 10);
+    ctx.fillStyle="#2ecc71";
+    ctx.fillRect(canvas.width/2-agreeW/2,canvas.height/2,agreeW,agreeH);
+    ctx.fillStyle="#000";
+    ctx.fillText("AGREE",canvas.width/2,canvas.height/2+agreeH/2+10);
 
-    if (agreeW < canvas.width) {
-      ctx.fillStyle = "#e74c3c";
-      ctx.fillRect(noX, noY, 200, 60);
-      ctx.fillStyle = "#000";
-      ctx.fillText("NO", noX + 100, noY + 40);
-    }
+    const nx = noClicks===0 ? canvas.width/2-100 : noX;
+    const ny = noClicks===0 ? canvas.height/2+agreeH+20 : noY;
+
+    ctx.fillStyle="#e74c3c";
+    ctx.fillRect(nx,ny,200,60);
+    ctx.fillStyle="#000";
+    ctx.fillText("NO",nx+100,ny+40);
   }
-}
-
-function drawLaneBackgrounds() {
-  for (let i = 0; i < 3; i++) {
-    const y = lanes[i] + player.h - 10;
-    const s = LANE_SPRITES[i];
-    for (let x = -laneScroll % LANE_DRAW_WIDTH; x < canvas.width; x += LANE_DRAW_WIDTH) {
-      ctx.drawImage(images.lane, LANE_X_START, s.y, LANE_WIDTH, s.h,
-        x, y, LANE_DRAW_WIDTH, LANE_DRAW_HEIGHT);
-    }
-  }
-}
-
-function drawOverlay(t) {
-  ctx.fillStyle = "rgba(0,0,0,0.6)";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = "#fff";
-  ctx.font = "32px Arial";
-  ctx.textAlign = "center";
-  ctx.fillText(t, canvas.width / 2, canvas.height / 2);
 }
 
 /* ================= LOOP ================= */
 
-function loop() {
+function loop(){
   update();
   draw();
   requestAnimationFrame(loop);
-                  }
+}
