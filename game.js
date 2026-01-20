@@ -181,13 +181,16 @@ canvas.addEventListener("touchstart", e => {
     const agree = { x: canvas.width/2 - agreeW/2, y: canvas.height/2, w: agreeW, h: agreeH };
     const no = { x: noX, y: noY, w: 200, h: 60 };
 
-    if (x > agree.x && x < agree.x + agree.w && y > agree.y && y < agree.y + agree.h) {
-      state = STATE.RESULT;
-      resultTime = Date.now();
-      return;
-    }
+    const hitNo =
+      x > no.x && x < no.x + no.w &&
+      y > no.y && y < no.y + no.h;
 
-    if (x > no.x && x < no.x + no.w && y > no.y && y < no.y + no.h) {
+    const hitAgree =
+      x > agree.x && x < agree.x + agree.w &&
+      y > agree.y && y < agree.y + agree.h;
+
+    // ✅ NO has priority (fixes overlap bug)
+    if (hitNo) {
       noClicks++;
 
       if (noClicks <= 3) {
@@ -200,7 +203,16 @@ canvas.addEventListener("touchstart", e => {
         agreeW = canvas.width;
         agreeH = canvas.height;
       }
+      return;
     }
+
+    // ✅ AGREE only triggers if NO wasn't hit
+    if (hitAgree) {
+      state = STATE.RESULT;
+      resultTime = Date.now();
+      return;
+    }
+
     return;
   }
 
@@ -252,7 +264,6 @@ function punch(){
 /* ================= UPDATE ================= */
 
 function update(){
-
   if (state === STATE.RUNNING) {
     animTimer+=16;
     if(!punching && animTimer>animSpeed){animFrame=(animFrame+1)%4;animTimer=0;}
@@ -282,7 +293,6 @@ function update(){
     }
   }
 
-  /* ✅ RESULT → RESUME */
   if (state === STATE.RESULT && Date.now() - resultTime > 2000) {
     state = STATE.RUNNING;
     startTime = Date.now();
@@ -357,4 +367,4 @@ function loop(){
   update();
   draw();
   requestAnimationFrame(loop);
-}
+  }
