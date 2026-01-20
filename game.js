@@ -114,12 +114,15 @@ let obstacles = [];
 let enemies = [];
 let cakeCount = 0;
 
-/* ================= TIMERS ================= */
+/* ================= TIMERS & FLAGS ================= */
 
 let startTime = 0;
 let birthdayTime = 0;
 let sonatResultTime = 0;
 let sonatMessage = "";
+
+let birthdayDone = false;
+let sonatDone = false;
 
 /* ================= INPUT ================= */
 
@@ -144,11 +147,12 @@ canvas.addEventListener("touchstart", e => {
     if (x < canvas.width / 2) {
       sonatMessage = "yayyy 🎉";
     } else {
-      sonatMessage = "kolladi 😤\nsonat took all the cakes";
+      sonatMessage = "kolladi 🖐\nsonat took all the cakes";
       cakeCount = 0;
     }
     sonatResultTime = Date.now();
     state = STATE.SONAT_RESULT;
+    sonatDone = true;
     return;
   }
 
@@ -189,6 +193,10 @@ function resetGame() {
   animFrame = 0;
   animTimer = 0;
   punching = false;
+
+  birthdayDone = false;
+  sonatDone = false;
+
   calcLanes();
 }
 
@@ -268,9 +276,10 @@ function update() {
 
   const now = Date.now();
 
-  if (state === STATE.RUNNING && now - startTime > 30000) {
+  if (state === STATE.RUNNING && !birthdayDone && now - startTime > 30000) {
     state = STATE.BIRTHDAY;
     birthdayTime = now;
+    birthdayDone = true;
   }
 
   if (state === STATE.BIRTHDAY && now - birthdayTime > 2000) {
@@ -347,8 +356,12 @@ function draw() {
 /* ================= LOOP ================= */
 
 function loop() {
-  if (state === STATE.RUNNING || state === STATE.BIRTHDAY || state === STATE.SONAT_RESULT)
-    update();
+  if (
+    state === STATE.RUNNING ||
+    state === STATE.BIRTHDAY ||
+    state === STATE.SONAT_RESULT
+  ) update();
+
   draw();
   requestAnimationFrame(loop);
 }
@@ -357,4 +370,3 @@ function loop() {
 
 resize();
 loop();
- 
