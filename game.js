@@ -219,28 +219,45 @@ function punch(){
 /* ================= UPDATE ================= */
 
 function update(){
-  if (state !== STATE.RUNNING) return;
 
-  animTimer+=16;
-  if(!punching&&animTimer>animSpeed){animFrame=(animFrame+1)%4;animTimer=0;}
+  /* ---- RUNNING ONLY (movement & collisions) ---- */
+  if (state === STATE.RUNNING) {
 
-  laneScroll+=speed;
-  cakes.forEach(o=>o.x-=speed);
-  obstacles.forEach(o=>o.x-=speed);
-  enemies.forEach(o=>o.x-=speed);
+    animTimer+=16;
+    if(!punching&&animTimer>animSpeed){animFrame=(animFrame+1)%4;animTimer=0;}
 
-  cakes=cakes.filter(o=>{
-    if(rectHit(player,{x:o.x,y:lanes[o.lane]+25,w:30,h:30})){cakeCount++;return false;}
-    return o.x>-50;
-  });
+    laneScroll+=speed;
+    cakes.forEach(o=>o.x-=speed);
+    obstacles.forEach(o=>o.x-=speed);
+    enemies.forEach(o=>o.x-=speed);
 
-  for(const o of [...obstacles,...enemies]){
-    if(rectHit(player,{x:o.x,y:lanes[o.lane],w:50,h:80})){state=STATE.GAMEOVER;return;}
+    cakes=cakes.filter(o=>{
+      if(rectHit(player,{x:o.x,y:lanes[o.lane]+25,w:30,h:30})){cakeCount++;return false;}
+      return o.x>-50;
+    });
+
+    for(const o of [...obstacles,...enemies]){
+      if(rectHit(player,{x:o.x,y:lanes[o.lane],w:50,h:80})){
+        state=STATE.GAMEOVER;
+        return;
+      }
+    }
+
+    if(Date.now()-startTime>15000){
+      state=STATE.BIRTHDAY;
+      birthdayTime=Date.now();
+    }
   }
 
-  if(Date.now()-startTime>15000){state=STATE.BIRTHDAY;birthdayTime=Date.now();}
-  if(state===STATE.BIRTHDAY&&Date.now()-birthdayTime>2000)state=STATE.JOKE;
-  if(state===STATE.RESULT&&Date.now()-resultTime>2000){state=STATE.RUNNING;startTime=Date.now();}
+  /* ---- PAUSED STATE TIMERS ---- */
+  if(state===STATE.BIRTHDAY && Date.now()-birthdayTime>2000){
+    state=STATE.JOKE;
+  }
+
+  if(state===STATE.RESULT && Date.now()-resultTime>2000){
+    state=STATE.RUNNING;
+    startTime=Date.now();
+  }
 }
 
 /* ================= DRAW ================= */
@@ -306,4 +323,3 @@ function loop(){
 
 resize();
 loop();
- 
