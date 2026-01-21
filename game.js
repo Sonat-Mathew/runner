@@ -399,6 +399,4 @@ function loop(){
   update();
   draw();
   requestAnimationFrame(loop);
-}
-
- 
+  }
