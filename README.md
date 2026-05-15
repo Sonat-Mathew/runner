@@ -1,4 +1,4 @@
-A(Mostly AI generated)game I made for my best friend's birthday 
+A(Mostly AI generated)game I made for my Best friend's birthday 
 
 #PLAY AT
    https://sonat-mathew.github.io/runner/
